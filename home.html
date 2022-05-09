@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Websocket</title>
+</head>
+
+<body>
+    <video id="video" controls></video>
+    <button class="playy">Play</button>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdn.socket.io/3.1.3/socket.io.min.js"></script>
+    <script type="text/javascript">
+        var arrayOfBlobs = [];
+        const socket = io('http://127.0.0.1:24212', {
+            transports: ['websocket']
+        });
+        socket.on('video', function(data) {
+            console.log(data)
+            arrayOfBlobs.push(data);
+            appendToSourceBuffer();
+        });
+
+
+        $('.playy').click(function(event) {
+            socket.emit("play", "");
+        });
+        var mimeCodec = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+
+
+        // 1. Create a `MediaSource`
+        // var mediaSource = new MediaSource();
+        var video = document.getElementById("video");
+        if ('MediaSource' in window && MediaSource.isTypeSupported(mimeCodec)) {
+            var mediaSource = new MediaSource;
+            // var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec)
+            //console.log(mediaSource.readyState); // closed
+            video.src = URL.createObjectURL(mediaSource);
+            mediaSource.addEventListener('sourceopen', sourceOpen);
+        } else {
+            console.error('Unsupported MIME type or codec: ', mimeCodec);
+        }
+        // 2. Create an object URL from the `MediaSource`
+        // var url = URL.createObjectURL(mediaSource);
+
+        // // 3. Set the video's `src` to the object URL
+        // var video = document.getElementById("video");
+        // video.src = url;
+
+        // 4. On the `sourceopen` event, create a `SourceBuffer`
+        // var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec)
+        // mediaSource.addEventListener("sourceopen", function() {
+        //     sourceBuffer.addEventListener("updateend", appendToSourceBuffer);
+        // });
+
+        function sourceOpen(_) {
+            console.log(this.readyState); // open
+            var mediaSource = this;
+            console.log(mediaSource);
+            var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
+            console.log(sourceBuffer);
+            sourceBuffer.addEventListener('updateend', function(_) {
+                mediaSource.endOfStream();
+                video.play();
+                console.log(mediaSource.readyState); // ended
+            });
+            appendToSourceBuffer()
+        };
+
+        function appendToSourceBuffer() {
+
+
+            if (
+                mediaSource.readyState === "open"
+            ) {
+                var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec)
+                sourceBuffer.addEventListener('updateend', function(_) {
+                    mediaSource.endOfStream();
+                    video.play();
+                    console.log(mediaSource.readyState); // ended
+                });
+                sourceBuffer.appendBuffer(arrayOfBlobs.shift());
+                console.log(sourceBuffer)
+            } else {
+                console.log("eeerrr", mediaSource.readyState)
+            }
+
+            if (
+                video.buffered.length &&
+                video.buffered.end(0) - video.buffered.start(0) > 1200
+            ) {
+                console.log("e111")
+                sourceBuffer.remove(0, video.buffered.end(0) - 1200)
+            } else {
+                console.log("2e111")
+            }
+        }
+    </script>
+</body>
+
+</html>
